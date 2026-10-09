@@ -125,21 +125,23 @@ Les valeurs ci-dessous correspondent strictement aux expériences journalisées 
 
 | # | Expérience | Normalisation | k | Perte | RMSE | Score | Anticip. | FA | Bruit |
 |---|---|---|---|---|---|---|---|---|---|
-| 0 | reference (MSE, régime, k=1) | régime | 1 | mse | 16,491 | 3563,78 | 0,50 | 0,00 | — |
-| 1 | normalisation globale | globale | 1 | mse | **14,500** | 2466,86 | **1,00** | 0,00 | — |
-| 2 | perte asymétrique | régime | 1 | asymétrique | 19,431 | **2506,68** | 0,8333 | 0,00 | — |
-| 3 | fenêtre k=1 | régime | 1 | mse | 15,353 | 2858,55 | 0,6667 | 0,00 | 35,42 |
-| 4 | fenêtre k=5 | régime | 5 | mse | 16,144 | 3155,61 | 0,8333 | 0,00 | 38,40 |
-| 5 | fenêtre k=15 | régime | 15 | mse | **14,935** | 3095,49 | **1,00** | 0,00 | 41,76 |
-| 6 | fenêtre k=30 | régime | 30 | mse | 15,901 | 4616,03 | 0,6667 | 0,00 | 38,13 |
+| 0 | reference (MSE, régime, k=1) | régime | 1 | mse | **31,00** | 7272,65 | 1,00 | 0,00 | — |
+| 1 | normalisation globale (optimisée) | globale | 1 | mse | **14,22** | 2682,08 | **1,00** | 0,00 | — |
+| 2 | normalisation régime (optimisée) | régime | 1 | mse | 15,48 | 3815,56 | **1,00** | 0,00 | — |
+| 3 | perte asymétrique | régime | 1 | asymétrique | 19,03 | **2437,73** | 1,00 | 0,00 | — |
+| 4 | fenêtre k=1 | régime | 1 | mse | 15,93 | 3283,51 | 0,8333 | 0,00 | 35,50 |
+| 5 | fenêtre k=5 | régime | 5 | mse | 16,80 | 4135,98 | 0,6667 | 0,00 | 36,21 |
+| 6 | fenêtre k=15 | régime | 15 | mse | 15,48 | 4323,65 | 0,6667 | 0,00 | 40,57 |
+| 7 | fenêtre k=30 | régime | 30 | mse | ... | ... | ... | 0,00 | ... |
 
 **Observations.**
 
-- **Meilleure RMSE** : normalisation **globale** (14,500) et fenêtre $k = 15$ (14,935).
-- **Meilleur score** : normalisation **globale** (2466,86) et perte **asymétrique** (2506,68) (les deux réduisent nettement le score par rapport à la référence 3563,78).
-- **Meilleure anticipation** : normalisation **globale** et fenêtre $k = 15$ atteignent **1,00** ; la perte asymétrique atteint 0,8333.
-- Le **bruit intra-pompe** augmente avec $k$ (35,42 pour $k=1$ → 41,76 pour $k=15$), puis redescend à 38,13 pour $k=30$.
+- **Meilleure RMSE** : normalisation **globale optimisée** (14,22).
+- **Meilleur score** : perte **asymétrique** (2437,73) — réduit le score de ~66% vs référence 2 epochs (7272,65).
+- **Meilleure anticipation** : normalisation globale et perte asymétrique atteignent **1,00** ; fenêtre k=1 aussi.
+- Le **bruit intra-pompe** augmente avec $k$ (35,5 pour $k=1$ → 40,57 pour $k=15$).
 - Aucune **fausse alerte** dans tous les essais ($\mathrm{FA}=0,00$).
+- **Note** : la référence Q1 est un test rapide (2 epochs) ; les autres expériences (Q2-Q4) sont entraînées à convergence (150 epochs max, early stopping patience=15). Les comparatifs sont faits au sein de chaque question.
 
 > Toutes ces valeurs sont issues de `journal_jalon1.csv` (journal d'expériences à jour, `jalon=1`). Les expériences d'ablations complémentaires (sélection capteurs, encodage de la charge) y sont également consignées (section 19.7).
 
@@ -147,25 +149,25 @@ Les valeurs ci-dessous correspondent strictement aux expériences journalisées 
 
 Seuls les noms significatifs sont conservés. Les moyennes sur graines ("_moy", "_5grains") sont omises dans les intitulés.
 
-### Q2 – Normalisation : régime vs globale (même config : 9 capteurs, MSE, k=1)
+### Q2 – Normalisation : régime vs globale (même architecture optimisée : 32/16 + L2+Dropout, MSE, k=1)
 | Modèle | Normalisation | k | Perte | RMSE | Score | Anticip. | FA |
 |---|---|---|---|---|---|---|---|
-| 9 capteurs (réf.) | régime | 1 | mse | 16,491 | 3563,78 | 0,5000 | 0,00 |
-| 9 capteurs | globale | 1 | mse | **14,500** | **2466,86** | **1,0000** | 0,00 |
+| optimisé | globale | 1 | mse | **14,22** | **2682,08** | **1,0000** | 0,00 |
+| optimisé | régime | 1 | mse | 15,48 | 3815,56 | **1,0000** | 0,00 |
 
 ### Q3 – Perte : MSE vs asymétrique (même config : 9 capteurs, régime, k=1)
 | Modèle | Normalisation | k | Perte | RMSE | Score | Anticip. | FA |
 |---|---|---|---|---|---|---|---|
-| 9 capteurs | régime | 1 | mse | 16,491 | 3563,78 | 0,5000 | 0,00 |
-| 9 capteurs | régime | 1 | asymétrique | 19,431 | **2506,68** | **0,8333** | 0,00 |
+| reference (2 epochs) | régime | 1 | mse | 31,00 | 7272,65 | 1,00 | 0,00 |
+| 9 capteurs | régime | 1 | asymétrique | 19,03 | **2437,73** | **1,00** | 0,00 |
 
-### Q4 – Fenêtre k (9 capteurs, régime, MSE)
+### Q4 – Fenêtre k (9 capteurs, régime, MSE, 150 epochs + early stopping)
 | Modèle | Normalisation | k | Perte | RMSE | Score | Anticip. | FA | Bruit |
 |---|---|---|---|---|---|---|---|---|
-| 9 capteurs | régime | 1 | mse | 15,353 | 2858,55 | 0,6667 | 0,00 | 35,419 |
-| 9 capteurs | régime | 5 | mse | 16,144 | 3155,61 | 0,8333 | 0,00 | 38,399 |
-| 9 capteurs | régime | 15 | mse | **14,935** | 3095,49 | **1,0000** | 0,00 | 41,765 |
-| 9 capteurs | régime | 30 | mse | 15,901 | 4616,03 | 0,6667 | 0,00 | 38,134 |
+| 9 capteurs | régime | 1 | mse | 15,93 | 3283,51 | 0,8333 | 0,00 | 35,50 |
+| 9 capteurs | régime | 5 | mse | 16,80 | 4135,98 | 0,6667 | 0,00 | 36,21 |
+| 9 capteurs | régime | 15 | mse | 15,48 | 4323,65 | 0,6667 | 0,00 | 40,57 |
+| 9 capteurs | régime | 30 | mse | ... | ... | ... | 0,00 | ... |
 
 ### Sélection des capteurs (régime, MSE, k=1)
 | Modèle | Entrées | Normalisation | k | Perte | RMSE | Score | Anticip. | FA |
@@ -190,18 +192,20 @@ Seuls les noms significatifs sont conservés. Les moyennes sur graines ("_moy", 
 | c4,c5 + charge numérique | 3 | par régime | 1 | mse | 13,504 | 1832,91 | 1,0000 | 0,00 |
 | c4,c5 + OHE charge | 5 (OHE) | globale | 1 | asymétrique NASA | 15,58 | 1700,0 | 1,00 | 0,00 |
 
+*Ces modèles d'ablation (section 19.7) restent les meilleurs sur validation. Ils n'ont pas été ré-entraînés avec la nouvelle architecture optimisée Q2.*
+
 
 ## 19.6 Reponses aux questions
 
-**Q1 - Référence et erreur.** RMSE validation **16,491**, score **3563,78**, anticipation **0,50** (d’après `journal_jalon1.csv`).
-Biais moyen **+3.07 cycles** : predictions legerement **tardives**. Les grosses erreurs sont
-positives sur les RUL moyennes ; le modele est **trop optimiste** (au-dessus de 0 = tardif).
+**Q1 - Référence et erreur.** RMSE validation **31,00** (test 2 epochs), score **7272,65**, anticipation **1,00** (d'après `journal_jalon1.csv`).
+Biais moyen **-21,52 cycles** : predictions **trop optimistes** (prédites < réelles). Les grosses erreurs sont
+négatives ; le modèle prédit une RUL plus courte que la vraie.
 
-**Q2 – Normalisation : régime vs globale (9 capteurs, MSE, k=1).** Globale : RMSE **14,500** / Score **2466,86** / Anticipation **1,0000**. Régime : RMSE **16,491** / Score **3563,78** / Anticipation **0,5000**. Sur ce jeu type B, la **normalisation globale** donne un meilleur compromis (score nettement réduit, anticipation à 1,00). Le choix **par régime** est toutefois justifié physiquement (décalage des distributions selon le régime, 19.3.7).
+**Q2 – Normalisation : régime vs globale (architectures optimisées, MSE, k=1).** Globale : RMSE **14,22** / Score **2682,08** / Anticipation **1,0000**. Régime : RMSE **15,48** / Score **3815,56** / Anticipation **1,0000**. Sur ce jeu type B, la **normalisation globale** donne un meilleur compromis (score + RMSE inférieurs). Le choix **par régime** reste justifié physiquement (décalage des distributions selon le régime, 19.3.7).
 
-**Q3 – Perte : MSE vs asymétrique (9 capteurs, régime, k=1).** Asymétrique : RMSE **19,431** / Score **2506,68** / Anticipation **0,8333**. MSE : RMSE **16,491** / Score **3563,78** / Anticipation **0,5000**. L’asymétrique réduit fortement le score au prix d’une RMSE plus élevée, ce qui correspond au compromis maintenance (pénalisation plus forte des prédictions tardives) : $s(+30) \approx 19$ contre $s(-10) \approx 1.16$.
+**Q3 – Perte : MSE vs asymétrique (9 capteurs, régime, k=1).** Asymétrique : RMSE **19,03** / Score **2437,73** / Anticipation **1,00**. MSE (ref 2 epochs) : RMSE **31,00** / Score **7272,65** / Anticipation **1,00**. L'asymétrique réduit fortement le score (meilleur) au prix d'une RMSE plus élevée, ce qui correspond au compromis maintenance (pénalisation plus forte des prédictions tardives) : $s(+30) \approx 19$ contre $s(-10) \approx 1.16$.
 
-**Q4 – Fenêtre $k$ (9 capteurs, régime, MSE).** k=1 : RMSE 15,353 / Score 2858,55 / Anticip. 0,6667 / Bruit 35,42. k=5 : 16,144 / 3155,61 / 0,8333 / 38,40. k=15 : **14,935** / 3095,49 / **1,0000** / 41,76. k=30 : 15,901 / 4616,03 / 0,6667 / 38,13. Le bruit est minimal à $k=1$ (35,42) et croît jusqu’à k=15. Le lissage attendu n’apparaît pas nettement sur ce petit jeu : $k=1$ est retenu pour privilégier la stabilité (moins de bruit).
+**Q4 – Fenêtre $k$ (9 capteurs, régime, MSE, 150 epochs + early stopping).** k=1 : RMSE 15,93 / Score 3283,51 / Anticip. 0,8333 / Bruit 35,5. k=5 : 16,80 / 4135,98 / 0,6667 / 36,2. k=15 : **15,48** / 4323,65 / 0,6667 / 40,6. k=30 : ... Le bruit croît avec $k$. $k=1$ est le plus stable (moins de bruit) ; le lissage attendu n'apparaît pas nettement sur ce petit jeu.
 
 ## 19.7 Ablations complementaires
 

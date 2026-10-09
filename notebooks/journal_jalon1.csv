@@ -9,3 +9,4 @@ jalon,nom,normalisation,k,perte,rmse,score,anticipation,fausses_alertes,regulari
 1,fenetre k=30,regime,30,mse,15.88384440035991,4502.635121271785,0.8333333333333334,0.0,,41.308631896972656,
 1,capteurs : 9 entrees (reference),regime,1,mse,16.01096568869613,3521.237732600337,0.7222222222222222,0.0,,,9.0
 1,capteurs : 5 entrees (sans capteurs |r| < 0.09),regime,1,mse,14.570294296359757,2019.6009049873344,1.0,0.0,,,5.0
+1,capteurs : 3 entrees (capteur_4 + capteur_5 + charge),regime,1,mse,13.500167136437662,1832.911536046404,1.0,0.0,,,3.0
