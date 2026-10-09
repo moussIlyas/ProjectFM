@@ -1,0 +1,13 @@
+[project]
+name = "hamida"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "jupyterlab>=4.6.4",
+    "matplotlib>=3.11.2",
+    "mlflow>=3.17.0",
+    "numpy>=2.5.3",
+    "pandas>=3.0.6",
+    "seaborn>=0.13.2",
+    "tensorflow>=2.21.0",
+]
