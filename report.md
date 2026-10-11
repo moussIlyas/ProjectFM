@@ -1,221 +1,103 @@
-# Rapport — UC5 Jalon 1 : estimation de la RUL (flotte A)
+# Étude de cas 5 — Jalon 1 : estimer la durée de vie restante (RUL)
 
-Compilation des resultats de `notebooks/mlp4.ipynb` et de
-`notebooks/journal_jalon1_flotteA.csv`.
+Notebook : `notebooks/jalon1_final.ipynb` (exécuté, graine `SEED = 42`, versions en tête).
+Journal d'expériences : `notebooks/journal_jalon1_flotteA.csv` (`journaliser`, `jalon = 1`).
+Figures : `notebooks/figures/`. Modèles : `notebooks/models/` (voir `notebooks/models/README.md`
+pour les charger et les utiliser).
 
-**Deux bases de mesure, a ne pas confondre :**
-- **Sections 2 a 7** : validation, RUL predite sur **tous les cycles** (score agrege sur
-  plusieurs milliers de points) — sert aux ablations (normalisation, perte, fenetre).
-- **Section 8** : **test** (30 pompes, une prediction par pompe au dernier cycle
-  observe, comparee a `rul_fin_test`) — c'est la base des cibles du cahier des charges.
+## 1. Objectif et données
 
----
+Prédire la RUL (nombre de cycles avant panne) d'une pompe de type A avec un MLP.
+Flotte A : **70 pompes** (train), **15** (validation), **30** (test, historiques coupés).
+Découpage imposé **par pompe**. RUL **plafonnée à 125 cycles** ; une pompe est *signalée*
+si la RUL prédite est **< 30 cycles**.
 
-## 0. Synthese (meilleur par section)
+Entrées : 8 capteurs + `charge` (régime 60/80/100 %). `capteur_4` et `capteur_5` portent
+l'essentiel de l'information, `charge` module les mesures.
 
-| Section | Meilleure configuration | RMSE | score NASA | anticipation | FA |
-|---|---|---|---|---|---|
-| 2. Modele de base | base 9 entrees | 19.82 | 128 258 | 0.733 | 0.0 |
-| 3. 3 entrees vs 9 | 9 (metrique) / 3 (retenu) | 19.82 | 128 258 | 0.733 | 0.0 |
-| 4. Normalisation | globale (metrique) / regime (retenu) | 20.49 | 140 748 | 0.622 | 0.0 |
-| 5. Fonction de perte | **asymetrique** | 22.84 | 63 815 | 0.822 | 0.0 |
-| 6. M4 (L2 + dropout) | **M4** | 22.51 | 62 107 | 0.822 | 0.0 |
-| 7. Fenetre k (M4) | **k = 30** | 20.16 | 46 794 | 0.756 | 0.0 |
-| **8. Cibles (test)** | **modele simple, k = 5, asym x6** | **19.22** | **179** | **0.909** | **0.0** |
+## 2. Résultats et réponses aux questions
 
-**Resultat clef** : un modele **simple** (MLP `64-32-1`, 3 entrees, regime, fenetre
-`k = 5`, perte asymetrique `x6`) **respecte les quatre cibles du cahier des charges sur
-le test** (voir section 8).
+Protocole : tous les réglages sur la **validation** ; le test n'est évalué **qu'une fois**.
 
----
+**Q1 — référence + erreur vs RUL réelle** (9 entrées, MSE, normalisation par régime) :
+RMSE val = **19,0** ; biais moyen = **+1,05 cycle** (léger retard). Le modèle est bon sur
+les cycles sains et se dégrade près de la panne, en **sur-estimant** la RUL (prédictions en
+retard, erreurs positives). Figure `fig_q1_erreur_reference.png`.
 
-## 1. Cadre experimental
+**Q2 — normalisation globale vs par régime** (RMSE / score) :
 
-- **Donnees** : flotte A. Decoupage par pompe (aucun recouvrement) : 70 pompes train
-  (19 220 cycles), 15 val (4 170), 30 test (historiques **coupes avant la panne**).
-- **Entrees** : 8 capteurs + `charge`. Jeu reduit retenu : `capteur_4`, `capteur_5`,
-  `charge`. EDA : `capteur_4`/`capteur_5` les plus correles a la RUL, `charge` module
-  les mesures.
-- **Cible** : RUL **plafonnee a 125 cycles** puis ramenee dans `[0, 1]` (activation de
-  sortie sigmoide).
-- **Normalisation** : z-score **par regime de charge** (statistiques des cycles sains),
-  ou globale (ablation).
-- **Metriques** : RMSE (cycles), score NASA (somme ; penalise surtout la sur-estimation),
-  anticipation (part des pompes a <= 30 cycles signalees), fausses alertes (part des
-  pompes a > 60 cycles signalees), bruit (ecart-type moyen des predictions intra-pompe).
-- **Evaluation test** : le test ne fournit qu'une cible par pompe, `rul_fin_test` (RUL au
-  dernier cycle observe) ; on compare **une prediction par pompe**.
+| normalisation | RMSE | score |
+|---|---|---|
+| globale | 19,13 | 104 563 |
+| **régime** | **19,01** | **103 457** |
 
----
+Le régime est légèrement meilleur → **retenu**. Figure `fig_q2_normalisation.png`.
 
-## 2. Modele de base (9 entrees)
+**Q3 — perte asymétrique vs MSE** :
 
-MLP `64-32-1`, normalisation par regime. Validation, tous cycles.
+| perte | RMSE | score | anticipation |
+|---|---|---|---|
+| MSE | 19,01 | 103 457 | 0,73 |
+| **asymétrique ×3** | 20,87 | **49 858** | **0,78** |
+| inspirée du score | 20,33 | 200 245 | 0,76 |
 
-| modele | RMSE | score | anticipation | FA |
+La perte asymétrique **divise le score par ~2** (elle réduit la sur-estimation, partie
+dominante du score) → **retenue**. La perte exponentielle « inspirée du score » est
+instable (décomposition du score dans le notebook).
+
+**Q4 — fenêtre de `k` cycles (M4, 3 entrées)** :
+
+| k | RMSE | score | anticipation | bruit |
 |---|---|---|---|---|
-| **base 9 entrees** | **19.82** | **128 258** | 0.733 | 0.0 |
+| **1** | 20,47 | 144 682 | 0,56 | **32,19** |
+| 5 | 18,93 | 104 218 | 0,53 | 32,49 |
+| 15 | 18,84 | 110 375 | 0,53 | 32,19 |
+| 30 | 18,47 | 98 510 | 0,56 | 33,00 |
 
-**Meilleur : base 9 entrees.** Bon sur les cycles sains, se degrade pres de la panne
-(tendance a sur-estimer la RUL, predictions en retard).
+Agrandir la fenêtre améliore un peu la RMSE/le score mais **ne réduit pas le bruit** et
+n'apporte pas de gain décisif → **k = 1** retenu (le plus simple). Figure `fig_q4_fenetres.png`.
 
----
+## 3. Modèle retenu
 
-## 3. Modele a 3 entrees vs 9 entrees
+**Référence (9 entrées, normalisation par régime) + perte asymétrique (`MSE × 3`)** :
+meilleur score sur la validation, et modèle le plus simple parmi les candidats.
 
-| modele | RMSE | score | anticipation | FA |
+**Évaluation sur le test (une seule fois, une prédiction par pompe) :**
+
+| exigence | mesure | cible | obtenu | respectée |
 |---|---|---|---|---|
-| **base 9 entrees** | **19.82** | **128 258** | **0.733** | 0.0 |
-| reduit 3 entrees | 20.54 | 144 911 | 0.556 | 0.0 |
+| RUL, type A | RMSE (cycles) | ≤ 23 | **22,68** | oui |
+| coût des erreurs | score asymétrique | ≤ 1 200 | **997,3** | oui |
+| anticipation | part des pompes ≤ 30 cycles signalées | ≥ 0,90 | **0,909** | oui |
+| fausses alertes | part des pompes > 60 cycles signalées | ≤ 0,10 | **0,000** | oui |
 
-**Meilleur sur les metriques : 9 entrees.** Le modele a **3 entrees est retenu** pour sa
-compacite (reseau bien plus leger), avec une perte de performance moderee.
+Le modèle **respecte les quatre cibles du cahier des charges**. Figure
+`fig_test_prediction.png`. Réserve : le test ne compte que 30 pompes (11 à ≤ 30 cycles),
+les taux sont donc quantifiés par pas de ~0,09.
 
----
+## 4. Choix à justifier
 
-## 4. Normalisation : globale vs par regime (3 entrees)
+- **Plafonnement de la RUL à 125 cycles** : la contribution au score explose au-delà de
+  ~20 cycles d'erreur ; plafonner borne la cible et évite que les cycles très lointains
+  ne dominent l'apprentissage.
+- **Perte** : **asymétrique**, car le score punit plus la sur-estimation (+10 coûte ×1,48
+  et +30 coûte ×2,11 par rapport à une sous-estimation de même amplitude).
+- **Activation de sortie** : **sigmoïde**, car la cible est dans `[0, 1]` après
+  plafonnement (0 → RUL 0, 1 → RUL ≥ 125).
 
-| normalisation | RMSE | score | anticipation | FA |
-|---|---|---|---|---|
-| **globale** | **20.49** | **140 748** | **0.622** | 0.0 |
-| regime | 20.54 | 144 911 | 0.556 | 0.0 |
+## 5. Vérifications théoriques
 
-**Meilleure sur les metriques : globale.** La **normalisation par regime est retenue**
-pour son sens physique (retire le niveau propre a chaque charge). Ecart faible et
-sensible au run.
+1. **Paramètres du MLP de référence `9-64-32-1`** :
+   `(9×64 + 64) + (64×32 + 32) + (32×1 + 1) = 640 + 2080 + 33 = **2753**`
+   (vérifié par `count_params()`).
+2. **Contribution au score** de `d = y_pred − y_reel` :
 
----
+   | d (cycles) | sens | contribution |
+   |---|---|---|
+   | −30 | sous-estimation | 9,051 |
+   | −10 | sous-estimation | 1,158 |
+   | +10 | sur-estimation | 1,718 |
+   | +30 | sur-estimation | 19,086 |
 
-## 5. Fonction de perte (3 entrees, regime)
-
-| perte | RMSE | score | anticipation | FA |
-|---|---|---|---|---|
-| mse | 20.54 | 144 911 | 0.556 | 0.0 |
-| **asymetrique (MSE x3 sur sur-estimation)** | 22.84 | **63 815** | **0.822** | 0.0 |
-| inspiree du score (exponentielle) | **21.88** | 313 110 | 0.800 | 0.0 |
-
-**Meilleure : asymetrique** — divise le score par ~2.3 en penalisant les predictions en
-retard, au prix d'une RMSE un peu plus elevee. La perte exponentielle est instable
-(dominee par quelques outliers).
-
----
-
-## 6. M4 — MLP regularise (L2 + dropout)
-
-Architecture `128-64-32`, ReLU, **L2** (`1e-3`) + **dropout** (`0.4`), perte
-asymetrique, Adam, early stopping sur `val_loss`. ~10 881 parametres.
-
-| modele | RMSE | score | anticipation | FA |
-|---|---|---|---|---|
-| reduit 3 - perte asymetrique | 22.84 | 63 815 | 0.822 | 0.0 |
-| **M4 (128-64-32, L2 + dropout 0.4)** | **22.51** | **62 107** | 0.822 | 0.0 |
-
-**Meilleur : M4** — domine le modele asymetrique seul sur la RMSE *et* le score, a
-anticipation egale.
-
----
-
-## 7. Fenetre temporelle aplatie k (M4)
-
-Concept (`mlp2` section 7) : donner au reseau les **`k` derniers cycles concatenes**
-(entree `k x 3`, premier cycle repete en amorce). Mesure en plus du **bruit**.
-
-| k | RMSE | score | anticipation | FA | bruit |
-|---|---|---|---|---|---|
-| 1 | 22.51 | 62 107 | **0.822** | 0.0 | 30.99 |
-| 5 | 20.73 | 50 635 | 0.778 | 0.0 | 31.34 |
-| 15 | 20.75 | 53 308 | 0.778 | 0.0 | 31.64 |
-| **30** | **20.16** | **46 794** | 0.756 | 0.0 | 31.78 |
-
-**Meilleur : k = 30** (score et RMSE), mais l'anticipation decroit avec k et le bruit
-**augmente** legerement (pas de lissage). `k = 5` capte deja l'essentiel du gain.
-
----
-
-## 8. Respect des cibles du cahier des charges (evaluation sur le test)
-
-Les cibles sont mesurees sur le **test** (30 pompes, une prediction par pompe au dernier
-cycle observe, comparee a `rul_fin_test`). C'est une base differente des sections 2 a 7
-(qui sommaient le score sur des milliers de cycles de validation), ce qui explique
-l'ordre de grandeur du score.
-
-| exigence | mesure | cible | obtenu | respectee |
-|---|---|---|---|---|
-| RUL, type A | RMSE (RUL plafonnee a 125) | <= 23 | **19.22** | oui |
-| cout des erreurs | score asymetrique | <= 1 200 | **179.4** | oui |
-| anticipation | part des pompes a <= 30 cycles signalees | >= 0,90 | **0.909** | oui |
-| fausses alertes | part des pompes a > 60 cycles signalees | <= 0,10 | **0.0** | oui |
-
-**Modele** : MLP `64-32-1` a **3 entrees** (`capteur_4`, `capteur_5`, `charge`),
-normalisation par regime, **perte asymetrique renforcee** (sur-estimation `x6`) et
-**fenetre `k = 5`**. Le renforcement de la penalite fait signaler le modele plus tot :
-l'anticipation passe de 0.82 (`x3`, k=5) a **0.909**, sans creer de fausse alerte.
-
-**Meilleur : le modele simple** — il respecte **les quatre cibles** simultanement.
-
----
-
-## 9. Recommandation
-
-- **Modele a livrer pour le jalon** : le **modele simple cible** (section 8) — il est le
-  seul a satisfaire les quatre exigences du cahier des charges sur le test.
-- **Modele de reference pour l'ablation** : M4 (section 6), meilleur compromis RMSE /
-  score sur la validation.
-- La fenetre temporelle est utile (`k = 5` a `30`), mais la **perte asymetrique
-  renforcee** est le levier decisif pour l'anticipation.
-
----
-
-## 10. Hyperparametres
-
-| modele | architecture | perte | optimiseur | arret | params |
-|---|---|---|---|---|---|
-| base 64-32-1 | 64-32-1 sigmoid | MSE | Adam 1e-3, 150 ep | - | 2 369 |
-| reduit 3 | 64-32-1 sigmoid | MSE | Adam 1e-3, 150 ep | - | 2 369 |
-| asymetrique | 64-32-1 sigmoid | MSE x3 (sur-est.) | Adam 1e-3 | - | 2 369 |
-| M4 | 128-64-32, L2 1e-3, dropout 0.4 | MSE x3 | Adam 1e-3 | val_loss, patience 25, RLROP 0.5/10 | 10 881 |
-| **modele cible** | **64-32-1, fenetre k=5** | **MSE x6 (sur-est.)** | **Adam 1e-3, 150 ep** | **-** | **2 369** |
-
-Fenetre k : entree `k x 3`, premier cycle repete en amorce.
-
----
-
-## 11. Limites et precautions
-
-- **Runs uniques** : la variance run-a-run du score atteint quelques milliers sur la
-  validation. Les ecarts `k = 5 / 15 / 30` sont dans le bruit ; le saut `k = 1 -> k >= 5`
-  est net.
-- **Test petit** : 30 pompes, dont 11 a <= 30 cycles ; anticipation et fausses alertes
-  sont quantifiees par pas de ~0,09. A confirmer sur d'autres graines.
-- **Selection** : le choix `k = 5` / penalite `x6` provient de la validation ; evaluer une
-  seule fois sur le test (fait ici) reste le protocole correct.
-- Les architectures **M1-M5** (annexe) proviennent d'une experience separee, a titre
-  exploratoire seulement. **M6** (reseau residuel Swish) a ete teste puis **retire** : le
-  modele simple de la section 8 fait mieux sur les cibles.
-
----
-
-## Annexe A. Architectures exploratoires M1-M5 (run unique, indicatif)
-
-Memes donnees (3 entrees, regime, perte asymetrique), seules l'architecture et la
-regularisation changent.
-
-| modele | architecture | params | RMSE | score | anticipation |
-|---|---|---|---|---|---|
-| M1 | 128-64-32, dropout 0.2 | 11 649 | 22.77 | 62 848 | 0.778 |
-| M2 | 256-128-64-32, dropout 0.3 | 45 825 | 24.05 | **54 132** | 0.533 |
-| M3 | 5 x 128, dropout 0.15 | 69 249 | 22.69 | 67 245 | 0.822 |
-| M4 | 128-64-32, L2 1e-3, dropout 0.4 | 10 881 | 22.72 | 61 053 | 0.822 |
-| M5 | 128-64-16-64-1, dropout 0.2 | 11 985 | 22.45 | 66 167 | 0.822 |
-
-**Lecture** : M2 donne le meilleur score brut mais degrade fortement l'anticipation ;
-M3/M5 sur-apprennent ; **M4 est le meilleur compromis** (retenu et integre a `mlp4`).
-
----
-
-## Annexe B. Fichiers
-
-- `notebooks/mlp4.ipynb` — notebook principal (sections 1-10).
-- `notebooks/journal_jalon1_flotteA.csv` — journal des experiences.
-- `notebooks/mlflow_jalon1.db` — suivi MLflow.
-- `report.md` — ce rapport.
+   À amplitude égale, une **sur-estimation** coûte ~1,5 à ~2,1 fois plus qu'une
+   sous-estimation → d'où la **perte asymétrique**.
