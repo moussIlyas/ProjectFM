@@ -1,0 +1,2 @@
+jalon,nom,normalisation,k,perte,features,rmse,score,anticipation,fausses_alertes
+1,"reference (9 entrees, regime)",regime,1,mse,9,19.546983140557987,119915.24463119698,0.7555555555555555,0.0
