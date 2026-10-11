@@ -45,17 +45,29 @@ La perte asymétrique **divise le score par ~2** (elle réduit la sur-estimation
 dominante du score) → **retenue**. La perte exponentielle « inspirée du score » est
 instable (décomposition du score dans le notebook).
 
-**Q4 — fenêtre de `k` cycles (M4, 3 entrées)** :
+**Q3bis — référence à 3 entrées** (mêmes décisions : régime, perte asymétrique, sans
+L2/dropout) vs référence 9 entrées (validation) :
+
+| modèle | RMSE | score | anticipation |
+|---|---|---|---|
+| **référence 9 entrées, asym** | **20,87** | **49 858** | **0,78** |
+| référence 3 entrées, asym | 22,78 | 59 601 | 0,76 |
+
+Le modèle 3 entrées est plus simple mais reste **en retrait en anticipation** : on garde
+les 9 entrées. C'est ce modèle « référence 3 entrées » qui est utilisé pour la fenêtre (Q4).
+
+**Q4 — fenêtre de `k` cycles (modèle retenu 9 entrées + perte asymétrique)** :
 
 | k | RMSE | score | anticipation | bruit |
 |---|---|---|---|---|
-| **1** | 20,47 | 144 682 | 0,56 | **32,19** |
-| 5 | 18,93 | 104 218 | 0,53 | 32,49 |
-| 15 | 18,84 | 110 375 | 0,53 | 32,19 |
-| 30 | 18,47 | 98 510 | 0,56 | 33,00 |
+| **1 (retenu)** | 20,87 | 49 858 | 0,78 | **32,09** |
+| 5 | 19,80 | **46 390** | **0,89** | 33,58 |
+| 15 | 19,55 | 49 327 | 0,82 | 33,83 |
+| 30 | **18,96** | 52 183 | 0,87 | 34,80 |
 
-Agrandir la fenêtre améliore un peu la RMSE/le score mais **ne réduit pas le bruit** et
-n'apporte pas de gain décisif → **k = 1** retenu (le plus simple). Figure `fig_q4_fenetres.png`.
+Aucune fenêtre ne domine clairement : k=5 gagne en score/anticipation, k=30 en RMSE,
+mais le **bruit augmente** avec k. k=1, déjà validé et testé une fois sur le test, est
+**retenu** (le plus simple, meilleur bruit). Figure `fig_q4_fenetres.png`.
 
 ## 3. Modèle retenu
 
